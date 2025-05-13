@@ -73,6 +73,7 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         self.app_ref = app
         self.scene_ref = scene
         self.drag_offset = QPointF()
+        self.binary_search = "version_2"
 
         self.setShapeMode(QGraphicsPixmapItem.ShapeMode.MaskShape)
 
@@ -104,37 +105,42 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
             if allow_movement(self.path_1, self.path_2, desired_pos.x(), desired_pos.y()):
                 return value
 
-            new_pos = self.binary_search_position(current_pos, desired_pos)
-            return new_pos if new_pos else current_pos
+            if self.binary_search == "version_1":
+                new_pos = self.binary_search_position_1(current_pos, desired_pos)
+                return new_pos if new_pos else current_pos
+            if self.binary_search == "version_2":
+                new_pos = self.binary_search_position_2(current_pos, desired_pos)
+                return new_pos if new_pos else current_pos
 
         return super().itemChange(change, value)
 
 
-    # def binary_search_position(self, start: QPointF, end: QPointF):
-    #     best_pos = None
-    #     while True:
-    #         possible_pos = (start + end) / 2
-    #         if allow_movement(self.path_1, self.path_2, possible_pos.x(), possible_pos.y()):
-    #             best_pos = possible_pos
-    #             start = possible_pos
-    #         else:
-    #             end = possible_pos
-    #
-    #         dx = end.x() - start.x()
-    #         dy = end.y() - end.y()
-    #         distance = math.hypot(dx, dy)
-    #         if  distance < 0.5:
-    #             print(f"distance: {distance}")
-    #             print(f"possible_pos: {possible_pos}")
-    #             print(f"best: {best_pos}")
-    #             break
-    #
-    #     return best_pos
+    def binary_search_position_1(self, start: QPointF, end: QPointF):
+        best_pos = None
+        while True:
+            possible_pos = (start + end) / 2
+            if allow_movement(self.path_1, self.path_2, possible_pos.x(), possible_pos.y()):
+                best_pos = possible_pos
+                start = possible_pos
+            else:
+                end = possible_pos
 
-    def binary_search_position(self, start: QPointF, end: QPointF, max_iter=20, tolerance=0.5):
+            dx = end.x() - start.x()
+            dy = end.y() - end.y()
+            distance = math.hypot(dx, dy)
+            if  distance < 0.5:
+                print(f"distance: {distance}")
+                print(f"possible_pos: {possible_pos}")
+                print(f"best: {best_pos}")
+                break
+
+        return best_pos
+
+
+    def binary_search_position_2(self, start: QPointF, end: QPointF, max_iter=20, tolerance=0.5):
         left = 0.0
         right = 1.0
-        best = None
+        best_pos = None
 
         for _ in range(max_iter):
             mid = (left + right) / 2.0
@@ -144,7 +150,7 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
             )
 
             if allow_movement(self.path_1, self.path_2, mid_point.x(), mid_point.y()):
-                best = mid_point
+                best_pos = mid_point
                 left = mid
             else:
                 right = mid
@@ -152,7 +158,7 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
             if abs(right - left) < tolerance / (end - start).manhattanLength():
                 break
 
-        return best
+        return best_pos
 
 
 
