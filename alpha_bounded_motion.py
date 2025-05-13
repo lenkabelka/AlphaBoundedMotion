@@ -8,6 +8,7 @@ from PyQt6.QtGui import QPainterPath, QPixmap, QTransform
 from PyQt6.QtCore import QPointF, Qt
 import cv2
 import sys
+import math
 
 
 def get_contours(image):
@@ -20,7 +21,7 @@ def get_contours(image):
     # find contours and hierarchy
     contours, hierarchy = cv2.findContours(
         binary,
-        cv2.RETR_CCOMP,   # внешние и внутренние контуры
+        cv2.RETR_CCOMP,   # outer and inner contours
         cv2.CHAIN_APPROX_SIMPLE
     )
 
@@ -28,7 +29,6 @@ def get_contours(image):
 
 
 def get_path(contours, hierarchy):
-
     path = QPainterPath()
     path.setFillRule(Qt.FillRule.OddEvenFill)
 
@@ -59,11 +59,12 @@ def allow_movement(path_1, path_2, new_x, new_y):
     transformed_path_2 = transform.map(path_2)
 
     if path_1.contains(transformed_path_2):
-        print("Background fully contains subspace")
+        print("Background fully contains subspace. Movement is allowed!")
         return True
     else:
-        print("!!!!!!")
+        print("Movement is not allowed!")
         return False
+
 
 
 class DraggablePixmapItem(QGraphicsPixmapItem):
@@ -71,6 +72,7 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         super().__init__(pixmap)
         self.app_ref = app
         self.scene_ref = scene
+        self.drag_offset = QPointF()
 
         self.setShapeMode(QGraphicsPixmapItem.ShapeMode.MaskShape)
 
@@ -83,17 +85,51 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         self.path_2 = get_path(get_contours("circle_with_hole.png")[0], get_contours("circle_with_hole.png")[1])
 
 
+    def mousePressEvent(self, event):
+        self.drag_offset = event.pos()
+        super().mousePressEvent(event)
+
+
     def mouseMoveEvent(self, event):
+        new_scene_pos = event.scenePos() - self.drag_offset
+        self.setPos(new_scene_pos)
         super().mouseMoveEvent(event)
+
 
     def itemChange(self, change, value):
         if change == QGraphicsItem.GraphicsItemChange.ItemPositionChange and self.scene():
+            current_pos = self.pos()
+            desired_pos = value
 
-            if allow_movement(self.path_1, self.path_2, value.x(), value.y()):
-                return value  # allow movement
-            else:
-                return self.pos()
+            if allow_movement(self.path_1, self.path_2, desired_pos.x(), desired_pos.y()):
+                return value
+
+            new_pos = self.binary_search_position(current_pos, desired_pos)
+            return new_pos if new_pos else current_pos
+
         return super().itemChange(change, value)
+
+
+    def binary_search_position(self, start: QPointF, end: QPointF):
+        best_pos = None
+        while True:
+            possible_pos = (start + end) / 2
+            if allow_movement(self.path_1, self.path_2, possible_pos.x(), possible_pos.y()):
+                best_pos = possible_pos
+                start = possible_pos
+            else:
+                end = possible_pos
+
+            dx = end.x() - start.x()
+            dy = end.y() - end.y()
+            distance = math.hypot(dx, dy)
+            if  distance < 1:
+                print(f"distance: {distance}")
+                print(f"possible_pos: {possible_pos}")
+                print(f"best: {best_pos}")
+                break
+
+        return best_pos
 
 
 
