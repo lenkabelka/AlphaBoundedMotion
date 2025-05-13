@@ -110,26 +110,49 @@ class DraggablePixmapItem(QGraphicsPixmapItem):
         return super().itemChange(change, value)
 
 
-    def binary_search_position(self, start: QPointF, end: QPointF):
-        best_pos = None
-        while True:
-            possible_pos = (start + end) / 2
-            if allow_movement(self.path_1, self.path_2, possible_pos.x(), possible_pos.y()):
-                best_pos = possible_pos
-                start = possible_pos
-            else:
-                end = possible_pos
+    # def binary_search_position(self, start: QPointF, end: QPointF):
+    #     best_pos = None
+    #     while True:
+    #         possible_pos = (start + end) / 2
+    #         if allow_movement(self.path_1, self.path_2, possible_pos.x(), possible_pos.y()):
+    #             best_pos = possible_pos
+    #             start = possible_pos
+    #         else:
+    #             end = possible_pos
+    #
+    #         dx = end.x() - start.x()
+    #         dy = end.y() - end.y()
+    #         distance = math.hypot(dx, dy)
+    #         if  distance < 0.5:
+    #             print(f"distance: {distance}")
+    #             print(f"possible_pos: {possible_pos}")
+    #             print(f"best: {best_pos}")
+    #             break
+    #
+    #     return best_pos
 
-            dx = end.x() - start.x()
-            dy = end.y() - end.y()
-            distance = math.hypot(dx, dy)
-            if  distance < 1:
-                print(f"distance: {distance}")
-                print(f"possible_pos: {possible_pos}")
-                print(f"best: {best_pos}")
+    def binary_search_position(self, start: QPointF, end: QPointF, max_iter=20, tolerance=0.5):
+        left = 0.0
+        right = 1.0
+        best = None
+
+        for _ in range(max_iter):
+            mid = (left + right) / 2.0
+            mid_point = QPointF(
+                start.x() + (end.x() - start.x()) * mid,
+                start.y() + (end.y() - start.y()) * mid
+            )
+
+            if allow_movement(self.path_1, self.path_2, mid_point.x(), mid_point.y()):
+                best = mid_point
+                left = mid
+            else:
+                right = mid
+
+            if abs(right - left) < tolerance / (end - start).manhattanLength():
                 break
 
-        return best_pos
+        return best
 
 
 
